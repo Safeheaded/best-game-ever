@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import HelloWorldScene from './scenes/HelloWorldScene'
 import axios from 'axios'
+import { getSocket } from './socket'
 
 const config = {
 	type: Phaser.AUTO,
@@ -16,8 +17,6 @@ const config = {
 	scene: [HelloWorldScene]
 }
 
-axios.post('http://localhost:8081/create', { 'gui': 'ArrowsHorizontal', 'max_players': 2 })
-	.then(res => console.log(res)).catch(error => console.log(error))
 
 const game = new Phaser.Game(config)
 
