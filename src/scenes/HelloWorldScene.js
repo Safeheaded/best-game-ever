@@ -2,61 +2,70 @@ import axios from 'axios';
 import Phaser from 'phaser'
 import { getSocket } from '../socket'
 
-class Player {
+class Player extends Phaser.GameObjects.Rectangle {
     id = null;
-    displayImage = null;
     down = false;
     up = false;
     left = false;
     right = false;
 
-    constructor(id, displayImage) {
+    constructor(id, scene, posX, posY, width, height, color) {
+        super(scene, posX, posY, width, height, color)
         this.id = id;
-        this.displayImage = displayImage;
+    }
+
+    update(time, delta) {
+        if (this.right && this.x + this.width / 2 < this.scene.physics.world.bounds.right) {
+            this.x += delta * 1;
+        }
+        if (this.left && this.x - this.width / 2 > 0) {
+            this.x -= delta * 1;
+        }
+        if (this.up && this.y - this.height / 2 > 0) {
+            this.y -= delta * 1;
+        }
+        if (this.down && this.y + this.height / 2 < this.scene.physics.world.bounds.bottom) {
+            this.y += delta * 1;
+        }
+        super.update();
     }
 }
 
 export default class HelloWorldScene extends Phaser.Scene {
 
     players = [];
-    down = false;
 
     constructor() {
         super('hello-world')
     }
 
     create() {
-        console.log(this.physics.world.bounds)
 
         this.socket = getSocket();
         this.socket.addEventListener('open', () => {
             axios.post('http://localhost:8081/create', { 'gui': 'CrossArrows', 'max_players': 50 })
                 .then(res => {
-                    alert(res.data.code); this.socket.send(JSON.stringify(res.data))
+                    this.add.text(this.physics.world.bounds.right - 150, 0, res.data.code, { fontFamily: 'Times, serif', fontSize: '40px' }); this.socket.send(JSON.stringify(res.data))
                 }).catch(error => console.log(error))
         })
         this.socket.addEventListener('message', event => {
-            console.log(event)
             if (typeof event.data == 'string') {
                 const data = JSON.parse(event.data)
-                console.log('new player requrest')
                 if (data.event_name == "player_added") {
-                    console.log('added new player ' + data)
                     const newPlayer = new Player(
-                        data.id,
-                        this.add.rectangle(100, 100, 200, 300, 0x6666ff
-                        ));
+                        data.id, this, 100, 100, 200, 300, 0x6666ff
+                    );
+                    this.add.existing(newPlayer)
                     this.players.push(newPlayer)
                 }
-                else if(data.event_name === 'player_removed'){
+                else if (data.event_name === 'player_removed') {
                     const playerIndex = this.players.findIndex(player => player.id === data.id)
                     const player = this.players.find(player => player.id === data.id)
-                    player.displayImage.destroy()
+                    player.destroy()
                     this.players.splice(playerIndex, 1)
                 }
             }
             else {
-                const enc = new TextDecoder();
                 event.data.arrayBuffer().then(data => {
                     const dataView = new DataView(data);
                     const command = dataView.getUint8(1)
@@ -110,18 +119,7 @@ export default class HelloWorldScene extends Phaser.Scene {
 
     update(time, delta) {
         for (const player of this.players) {
-            if (player.right && player.displayImage.x + player.displayImage.width / 2 < this.physics.world.bounds.right) {
-                player.displayImage.x += delta * 1;
-            }
-            if (player.left && player.displayImage.x - player.displayImage.width / 2 > 0) {
-                player.displayImage.x -= delta * 1;
-            }
-            if (player.up && player.displayImage.y - player.displayImage.height / 2 > 0) {
-                player.displayImage.y -= delta * 1;
-            }
-            if (player.down && player.displayImage.y + player.displayImage.height / 2 < this.physics.world.bounds.bottom) {
-                player.displayImage.y += delta * 1;
-            }
+            player.update(time, delta)
         }
     }
 }
