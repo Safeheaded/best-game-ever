@@ -2,13 +2,27 @@ import axios from 'axios';
 import Phaser from 'phaser'
 import { getSocket } from '../socket'
 
-export default class HelloWorldScene extends Phaser.Scene {
-    player = null;
+class Player {
+    id = null;
+    displayImage = null;
     down = false;
+    up = false;
+    left = false;
+    right = false;
+
+    constructor(id, displayImage) {
+        this.id = id;
+        this.displayImage = displayImage;
+    }
+}
+
+export default class HelloWorldScene extends Phaser.Scene {
+
+    players = [];
+    down = false;
+
     constructor() {
         super('hello-world')
-
-
     }
 
     create() {
@@ -17,16 +31,30 @@ export default class HelloWorldScene extends Phaser.Scene {
         this.socket = getSocket();
         this.socket.addEventListener('open', () => {
             axios.post('http://localhost:8081/create', { 'gui': 'CrossArrows', 'max_players': 50 })
-                .then(res => { alert(res.data.code); this.socket.send(JSON.stringify(res.data)) }).catch(error => console.log(error))
+                .then(res => {
+                    alert(res.data.code); this.socket.send(JSON.stringify(res.data))
+                }).catch(error => console.log(error))
         })
         this.socket.addEventListener('message', event => {
-            if (event.data.text != null) {
-                // const dataView = new DataView(event.data)
+            console.log(event)
+            if (typeof event.data == 'string') {
+                const data = JSON.parse(event.data)
+                console.log('new player requrest')
+                if (data.event_name == "player_added") {
+                    console.log('added new player ' + data)
+                    const newPlayer = new Player(
+                        data.id,
+                        this.add.rectangle(100, 100, 200, 300, 0x6666ff
+                        ));
+                    this.players.push(newPlayer)
+                }
+            }
+            else {
                 const enc = new TextDecoder();
                 event.data.arrayBuffer().then(data => {
-                    const val = new Uint8Array(data)
                     const dataView = new DataView(data);
                     const command = dataView.getUint8(1)
+                    const playerId = dataView.getUint8(0)
 
                     const arrowUp = 0b00000000
                     const arrowLeft = 0b00000110
@@ -35,67 +63,59 @@ export default class HelloWorldScene extends Phaser.Scene {
                     const keyUp = 0b00000000
                     const keyDown = 0b00000001
 
-                    if (command === (arrowDown | keyDown)) {
-                        this.down = true;
-                    }
-                    if (command === (arrowDown | keyUp)) {
-                        this.down = false;
-                    }
+                    const player = this.players.find(player => player.id === playerId)
 
-                    if (command === (arrowUp | keyDown)) {
-                        this.up = true;
-                    }
-                    if (command === (arrowUp | keyUp)) {
-                        this.up = false;
-                    }
+                    console.log({ players: this.players })
 
-                    if (command === (arrowLeft | keyDown)) {
-                        this.left = true;
-                    }
-                    if (command === (arrowLeft | keyUp)) {
-                        this.left = false;
-                    }
+                    if (player) {
+                        if (command === (arrowDown | keyDown)) {
+                            player.down = true;
+                        }
+                        if (command === (arrowDown | keyUp)) {
+                            player.down = false;
+                        }
 
-                    if (command === (arrowRight | keyDown)) {
-                        this.right = true;
-                    }
-                    if (command === (arrowRight | keyUp)) {
-                        this.right = false;
-                    }
+                        if (command === (arrowUp | keyDown)) {
+                            player.up = true;
+                        }
+                        if (command === (arrowUp | keyUp)) {
+                            player.up = false;
+                        }
 
+                        if (command === (arrowLeft | keyDown)) {
+                            player.left = true;
+                        }
+                        if (command === (arrowLeft | keyUp)) {
+                            player.left = false;
+                        }
+
+                        if (command === (arrowRight | keyDown)) {
+                            player.right = true;
+                        }
+                        if (command === (arrowRight | keyUp)) {
+                            player.right = false;
+                        }
+                    }
 
                 })
             }
-            else {
-                const data = JSON.parse(event.data)
-                if (data.event_name == "player_added") {
-
-                    this.player = this.add.rectangle(100, 100, 200, 300, 0x6666ff)
-                }
-            }
-
-
         })
-
-        this.key_d = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        this.key_a = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A)
-        this.key_w = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W)
-        this.key_s = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S)
     }
 
     update(time, delta) {
-        if (this.player == null) return;
-        if (this.right && this.player.x + this.player.width / 2 < this.physics.world.bounds.right) {
-            this.player.x += delta * 1;
-        }
-        if (this.left && this.player.x - this.player.width / 2 > 0) {
-            this.player.x -= delta * 1;
-        }
-        if (this.up && this.player.y - this.player.height / 2 > 0) {
-            this.player.y -= delta * 1;
-        }
-        if (this.down && this.player.y + this.player.height / 2 < this.physics.world.bounds.bottom) {
-            this.player.y += delta * 1;
+        for (const player of this.players) {
+            if (player.right && player.displayImage.x + player.displayImage.width / 2 < this.physics.world.bounds.right) {
+                player.displayImage.x += delta * 1;
+            }
+            if (player.left && player.displayImage.x - player.displayImage.width / 2 > 0) {
+                player.displayImage.x -= delta * 1;
+            }
+            if (player.up && player.displayImage.y - player.displayImage.height / 2 > 0) {
+                player.displayImage.y -= delta * 1;
+            }
+            if (player.down && player.displayImage.y + player.displayImage.height / 2 < this.physics.world.bounds.bottom) {
+                player.displayImage.y += delta * 1;
+            }
         }
     }
 }
