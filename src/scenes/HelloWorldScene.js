@@ -48,6 +48,12 @@ export default class HelloWorldScene extends Phaser.Scene {
                         ));
                     this.players.push(newPlayer)
                 }
+                else if(data.event_name === 'player_removed'){
+                    const playerIndex = this.players.findIndex(player => player.id === data.id)
+                    const player = this.players.find(player => player.id === data.id)
+                    player.displayImage.destroy()
+                    this.players.splice(playerIndex, 1)
+                }
             }
             else {
                 const enc = new TextDecoder();
